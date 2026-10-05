@@ -32,4 +32,22 @@ class VectorStore:
 
 if __name__ == "__main__":
     store = VectorStore()
-    print(f"Documents in store: {store.count()}")
+    print(f"Documents in store: {store.count()}\n")
+
+    test_queries = [
+        "পণ্য ভেজাল হলে ভোক্তা কী প্রতিকার পেতে পারেন?",
+        "অভিযোগ কীভাবে দায়ের করতে হয়?",
+        "ভোক্তা অধিকার লঙ্ঘনের শাস্তি কী?",
+    ]
+
+    for q in test_queries:
+        print(f"প্রশ্ন: {q}")
+        results = store.query(q, top_k=3)
+        for doc, meta, dist in zip(
+            results["documents"][0],
+            results["metadatas"][0],
+            results["distances"][0],
+        ):
+            print(f"  [{meta['section']}] (distance: {dist:.3f})")
+            print(f"  {doc[:150]}...")
+        print("----")
