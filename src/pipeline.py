@@ -34,7 +34,7 @@ def answer_question(query: str, top_k: int = 5) -> dict:
     not_found_phrase = "পাওয়া যায়নি"
     actually_found = not_found_phrase not in answer
 
-    sources = list({c["section"] for c in context_chunks}) if actually_found else []
+    sources = list({c["section"].strip() for c in context_chunks}) if actually_found else []
 
     return {
         "answer": answer,
