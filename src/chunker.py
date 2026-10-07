@@ -36,6 +36,12 @@ def chunk_by_section(text: str) -> list[dict]:
 
 
 def split_long_chunks(chunks: list[dict], max_chars: int = 800, overlap: int = 100) -> list[dict]:
+    """
+    Splits long chunks. First tries to split on sub-item markers like
+    "(১)", "(২)" so a single definition/sub-clause never gets cut in
+    half across two pieces. Falls back to character-based splitting
+    only if no such markers exist.
+    """
     result = []
     for chunk in chunks:
         content = chunk["content"]
@@ -45,12 +51,28 @@ def split_long_chunks(chunks: list[dict], max_chars: int = 800, overlap: int = 1
             result.append(chunk)
             continue
 
-        start = 0
-        while start < len(content):
-            end = start + max_chars
-            piece = content[start:end]
-            result.append({"section": section, "content": piece.strip()})
-            start = end - overlap
+        # বাংলা সংখ্যা + বন্ধনী marker খুঁজি, যেমন "(১)", "(২২)"
+        sub_item_pattern = r"(?=\([০-৯]+\))"
+        parts = re.split(sub_item_pattern, content)
+        parts = [p.strip() for p in parts if p.strip()]
+
+        if len(parts) > 1:
+            current = ""
+            for part in parts:
+                if current and len(current) + len(part) > max_chars:
+                    result.append({"section": section, "content": current.strip()})
+                    current = part
+                else:
+                    current += " " + part if current else part
+            if current.strip():
+                result.append({"section": section, "content": current.strip()})
+        else:
+            start = 0
+            while start < len(content):
+                end = start + max_chars
+                piece = content[start:end]
+                result.append({"section": section, "content": piece.strip()})
+                start = end - overlap
 
     return result
 
