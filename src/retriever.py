@@ -16,6 +16,14 @@ class VectorStore:
             name=collection_name, embedding_function=self.embed_fn
         )
 
+    def reset(self):
+        """Deletes all existing documents in the collection (fresh rebuild)."""
+        name = self.collection.name
+        self.client.delete_collection(name)
+        self.collection = self.client.get_or_create_collection(
+            name=name, embedding_function=self.embed_fn
+        )
+
     def add_chunks(self, chunks: list[dict]):
         self.collection.add(
             documents=[c["content"] for c in chunks],

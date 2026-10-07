@@ -25,6 +25,7 @@ def main():
 
     print("Indexing into vector store...")
     store = VectorStore()
+    store.reset()
     store.add_chunks(chunks)
     print(f"Done. Total documents in store: {store.count()}")
 
