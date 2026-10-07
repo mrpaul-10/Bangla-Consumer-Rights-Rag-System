@@ -6,11 +6,11 @@ from src.retriever import VectorStore
 from src.generator import generate_answer
 
 # Step 7-এর real data দেখে ঠিক করা হয়েছে:
-# relevant answer-গুলোর distance ছিল ~0.2-0.45, তাই buffer সহ 0.65 রাখা হলো
-DISTANCE_THRESHOLD = 0.65
+# relevant answer-গুলোর distance ছিল ~0.2-0.45, তাই buffer সহ 0.65 (৬৫ কে চেঞ্জ করে ৮০ করা হলো আকুরেসি চেক করার জন্য )
+DISTANCE_THRESHOLD = 0.80
 
 
-def answer_question(query: str, top_k: int = 4) -> dict:
+def answer_question(query: str, top_k: int = 5) -> dict:
     store = VectorStore()
     results = store.query(query, top_k=top_k)
 
