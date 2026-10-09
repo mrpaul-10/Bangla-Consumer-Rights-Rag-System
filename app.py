@@ -79,14 +79,13 @@ st.markdown(
 
         [data-testid="stSidebar"] { background: var(--paper-deep); border-right: 1px solid var(--rule); }
         .seal {
-            width: 42px; height: 42px; border: 1.5px solid var(--forest); border-radius: 50%;
+            width: 64px; height: 64px; border: 2px solid var(--forest); border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
-            font-size: 1.2rem; color: var(--forest); margin-bottom: 10px;
+            font-size: 1.8rem; color: var(--forest); margin: 0 auto 12px;
         }
         .sidebar-title { font-family: 'Noto Serif Bengali', serif; font-size: 1.05rem;
-                          font-weight: 600; color: var(--forest-deep); margin: 0 0 4px; }
-        .sidebar-sub { font-size: 0.78rem; color: var(--ink-soft); margin: 0 0 16px; line-height: 1.5; }
-        .sidebar-section-label {
+                          font-weight: 600; color: var(--forest-deep); margin: 0 0 4px; text-align: center; }
+        .sidebar-sub { font-size: 0.78rem; color: var(--ink-soft); margin: 0 0 16px; line-height: 1.5; text-align: center; }        .sidebar-section-label {
             font-size: 0.7rem; color: var(--ink-soft); margin: 4px 0 8px;
         }
 
@@ -104,9 +103,17 @@ st.markdown(
         .conv-btn button {
             width: 100%; text-align: right; background: transparent !important;
             border: none !important; color: var(--ink) !important;
-            font-size: 0.83rem !important; padding: 7px 10px !important;
+            font-size: 0.83rem !important; padding: 6px 10px !important;
             border-radius: 4px !important;
+            margin: 0 !important;
         }
+        .conv-btn, .conv-btn-active {
+            margin-bottom: 2px !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+            gap: 0.25rem !important;
+        }
+
         .conv-btn button:hover { background: var(--forest-tint) !important; }
         .conv-btn-active button {
             background: var(--forest-tint) !important;
@@ -120,6 +127,12 @@ st.markdown(
 
         .sidebar-divider { border-top: 1px solid var(--rule); margin: 16px 0; }
         .sidebar-footer { font-size: 0.74rem; }
+
+        .sidebar-footer-pin {
+            position: fixed;
+            bottom: 20px;
+            width: 232px;
+        }
 
         [data-testid="stChatInput"] textarea { text-align: right; }
         [data-testid="stChatMessageContent"] p { color: var(--ink) !important; }
@@ -192,6 +205,8 @@ with st.sidebar:
     conv_ids = list(st.session_state.conversations.keys())[::-1]
     for conv_id in conv_ids:
         conv = st.session_state.conversations[conv_id]
+        if conv["title"] is None:
+            continue
         is_active = conv_id == st.session_state.current_conv_id
         css_class = "conv-btn-active conv-btn" if is_active else "conv-btn"
         st.markdown(f'<div class="{css_class}">', unsafe_allow_html=True)
@@ -200,11 +215,13 @@ with st.sidebar:
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
     st.markdown(
+        '<div class="sidebar-footer-pin">'
+        '<div class="sidebar-divider"></div>'
         '<p class="sidebar-footer">সোর্স কোড — '
         '<a href="https://github.com/mrpaul-10/Bangla-Consumer-Rights-Rag-System" '
-        'target="_blank">GitHub রিপোজিটরি</a></p>',
+        'target="_blank">GitHub রিপোজিটরি</a></p>'
+        '</div>',
         unsafe_allow_html=True,
     )
 
@@ -292,7 +309,7 @@ if question:
             "error": result.get("error", False),
         }
     )
-
+    st.rerun()
 # ---------------------------------------------------------------------------
 # Persistent disclaimer
 # ---------------------------------------------------------------------------
