@@ -1,10 +1,9 @@
 """
 Streamlit chat UI for the Bangla Consumer Rights Assistant.
 Calls the FastAPI backend (api.py) over HTTP.
-
-Run the API first:  uvicorn api:app --reload
-Then run this:       streamlit run app.py
 """
+
+import uuid
 
 import requests
 import streamlit as st
@@ -86,22 +85,45 @@ st.markdown(
         }
         .sidebar-title { font-family: 'Noto Serif Bengali', serif; font-size: 1.05rem;
                           font-weight: 600; color: var(--forest-deep); margin: 0 0 4px; }
-        .sidebar-sub { font-size: 0.78rem; color: var(--ink-soft); margin: 0 0 16px; }
+        .sidebar-sub { font-size: 0.78rem; color: var(--ink-soft); margin: 0 0 16px; line-height: 1.5; }
         .sidebar-section-label {
-            font-size: 0.72rem; color: var(--ink-soft); border-bottom: 1px solid var(--rule);
-            padding-bottom: 6px; margin: 14px 0 8px;
+            font-size: 0.7rem; color: var(--ink-soft); margin: 4px 0 8px;
         }
 
-        [data-testid="stSidebar"] .stButton button {
-            width: 100%; text-align: right; background: var(--paper);
-            border: 1px solid var(--rule); border-radius: 3px; color: var(--ink);
-            font-size: 0.82rem; padding: 8px 12px;
+        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { color: var(--ink-soft) !important; }
+        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] a { color: var(--forest) !important; }
+
+        /* New-chat button: filled, primary */
+        .new-chat-btn button {
+            background: var(--forest) !important; color: #fff !important;
+            border: none !important; font-weight: 500;
         }
-        [data-testid="stSidebar"] .stButton button:hover {
-            border-color: var(--forest); background: var(--forest-tint); color: var(--forest-deep);
+        .new-chat-btn button:hover { background: var(--forest-deep) !important; }
+
+        /* Conversation list buttons: plain, left-aligned, compact */
+        .conv-btn button {
+            width: 100%; text-align: right; background: transparent !important;
+            border: none !important; color: var(--ink) !important;
+            font-size: 0.83rem !important; padding: 7px 10px !important;
+            border-radius: 4px !important;
         }
+        .conv-btn button:hover { background: var(--forest-tint) !important; }
+        .conv-btn-active button {
+            background: var(--forest-tint) !important;
+            font-weight: 600 !important;
+            color: var(--forest-deep) !important;
+        }
+
+        [data-testid="stSidebar"] .stButton button:not(.new-chat-btn button) {
+            border: 1px solid var(--rule);
+        }
+
+        .sidebar-divider { border-top: 1px solid var(--rule); margin: 16px 0; }
+        .sidebar-footer { font-size: 0.74rem; }
 
         [data-testid="stChatInput"] textarea { text-align: right; }
+        [data-testid="stChatMessageContent"] p { color: var(--ink) !important; }
+        [data-testid="stMarkdownContainer"] p { color: var(--ink); }
     </style>
     """,
     unsafe_allow_html=True,
@@ -122,56 +144,74 @@ st.markdown(
 )
 
 # ---------------------------------------------------------------------------
-# Sidebar
+# Session state: multi-conversation store
+# ---------------------------------------------------------------------------
+if "conversations" not in st.session_state:
+    first_id = str(uuid.uuid4())
+    st.session_state.conversations = {first_id: {"title": None, "messages": []}}
+    st.session_state.current_conv_id = first_id
+
+if "pending_question" not in st.session_state:
+    st.session_state.pending_question = None
+
+
+def start_new_conversation():
+    new_id = str(uuid.uuid4())
+    st.session_state.conversations[new_id] = {"title": None, "messages": []}
+    st.session_state.current_conv_id = new_id
+
+
+def conversation_label(conv: dict) -> str:
+    if conv["title"]:
+        return conv["title"]
+    return "নতুন কথোপকথন"
+
+
+# ---------------------------------------------------------------------------
+# Sidebar — ChatGPT-style conversation history
 # ---------------------------------------------------------------------------
 with st.sidebar:
     st.markdown(
         """
         <div class="seal">⚖</div>
         <p class="sidebar-title">ভোক্তা অধিকার সহায়ক</p>
-        <p class="sidebar-sub">ভোক্তা অধিকার সংরক্ষণ আইন, ২০০৯ — সহায়ক পাঠ ব্যবস্থা</p>
-        <p class="sidebar-section-label">নির্মিত হয়েছে</p>
+        <p class="sidebar-sub">ভোক্তা অধিকার সংরক্ষণ আইন, ২০০৯ অনুযায়ী বাংলায় প্রশ্ন করুন</p>
         """,
         unsafe_allow_html=True,
     )
-    st.markdown(
-        "— Google Gemini (উত্তর প্রণয়ন)  \n"
-        "— ChromaDB (অর্থগত অনুসন্ধান)  \n"
-        "— Multilingual Embeddings  \n"
-        "— FastAPI ও Streamlit"
-    )
 
-    st.markdown('<p class="sidebar-section-label">উদাহরণ জিজ্ঞাসা</p>', unsafe_allow_html=True)
-    example_questions = [
-        "অভিযোগ কীভাবে দায়ের করতে হয়?",
-        "ভোক্তা কাকে বলে?",
-        "ভেজাল পণ্য বিক্রির শাস্তি কী?",
-        "অভিযোগ দায়েরের সময়সীমা কত দিন?",
-    ]
-    for q in example_questions:
-        if st.button(q, use_container_width=True, key=f"eg_{q}"):
-            st.session_state.pending_question = q
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("কথোপকথন মুছে ফেলুন", use_container_width=True):
-        st.session_state.messages = []
+    st.markdown('<div class="new-chat-btn">', unsafe_allow_html=True)
+    if st.button("＋ নতুন কথোপকথন", use_container_width=True):
+        start_new_conversation()
         st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
 
+    st.markdown('<p class="sidebar-section-label">কথোপকথনের ইতিহাস</p>', unsafe_allow_html=True)
+
+    # Most recently created conversation first
+    conv_ids = list(st.session_state.conversations.keys())[::-1]
+    for conv_id in conv_ids:
+        conv = st.session_state.conversations[conv_id]
+        is_active = conv_id == st.session_state.current_conv_id
+        css_class = "conv-btn-active conv-btn" if is_active else "conv-btn"
+        st.markdown(f'<div class="{css_class}">', unsafe_allow_html=True)
+        if st.button(conversation_label(conv), key=f"conv_{conv_id}", use_container_width=True):
+            st.session_state.current_conv_id = conv_id
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
     st.markdown(
-        '<p class="sidebar-section-label">সোর্স কোড</p>'
-        '<p style="font-size:0.78rem;">'
+        '<p class="sidebar-footer">সোর্স কোড — '
         '<a href="https://github.com/mrpaul-10/Bangla-Consumer-Rights-Rag-System" '
-        'style="color:#0B4A3C;" target="_blank">GitHub রিপোজিটরি</a></p>',
+        'target="_blank">GitHub রিপোজিটরি</a></p>',
         unsafe_allow_html=True,
     )
 
 # ---------------------------------------------------------------------------
-# Session state
+# Active conversation
 # ---------------------------------------------------------------------------
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "pending_question" not in st.session_state:
-    st.session_state.pending_question = None
+current = st.session_state.conversations[st.session_state.current_conv_id]
 
 
 # ---------------------------------------------------------------------------
@@ -208,11 +248,12 @@ def render_assistant_extras(result: dict):
 
 
 # ---------------------------------------------------------------------------
-# Render past messages
+# Render past messages of the active conversation
 # ---------------------------------------------------------------------------
-for msg in st.session_state.messages:
+for msg in current["messages"]:
     label = "আপনি" if msg["role"] == "user" else "ভোক্তা অধিকার সহায়ক"
-    with st.chat_message(msg["role"]):
+    avatar = "🙋" if msg["role"] == "user" else "⚖️"
+    with st.chat_message(msg["role"], avatar=avatar):
         st.markdown(f"<div class='msg-label'>{label}</div>", unsafe_allow_html=True)
         st.markdown(msg["content"])
         if msg["role"] == "assistant":
@@ -226,19 +267,23 @@ question = st.session_state.pending_question or typed_question
 st.session_state.pending_question = None
 
 if question:
-    st.session_state.messages.append({"role": "user", "content": question})
-    with st.chat_message("user"):
+    # Title the conversation from its first question
+    if current["title"] is None:
+        current["title"] = question[:40] + ("…" if len(question) > 40 else "")
+
+    current["messages"].append({"role": "user", "content": question})
+    with st.chat_message("user", avatar="🙋"):
         st.markdown("<div class='msg-label'>আপনি</div>", unsafe_allow_html=True)
         st.markdown(question)
 
-    with st.chat_message("assistant"):
+    with st.chat_message("assistant", avatar="⚖️"):
         st.markdown("<div class='msg-label'>ভোক্তা অধিকার সহায়ক</div>", unsafe_allow_html=True)
         with st.spinner("উত্তর খোঁজা হচ্ছে…"):
             result = ask_backend(question)
         st.markdown(result["answer"])
         render_assistant_extras(result)
 
-    st.session_state.messages.append(
+    current["messages"].append(
         {
             "role": "assistant",
             "content": result["answer"],
