@@ -4,5 +4,5 @@ __pycache__/
 *.pyc
 chroma_db/
 .streamlit/secrets.toml
-data/raw/*.pdf
+#data/raw/*.pdf
 data/processed/
