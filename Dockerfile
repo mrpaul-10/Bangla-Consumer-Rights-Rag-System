@@ -18,6 +18,7 @@ COPY . .
 EXPOSE 8000 8501
 
 # Build the vector index, then start both services
-CMD python scripts/build_index.py && \
-    uvicorn api:app --host 0.0.0.0 --port 8000 & \
-    streamlit run app.py --server.port 8501 --server.address 0.0.0.0
+COPY start.sh .
+RUN chmod +x start.sh
+
+CMD ["./start.sh"]
